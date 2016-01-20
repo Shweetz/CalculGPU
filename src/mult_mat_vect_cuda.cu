@@ -51,7 +51,7 @@ void kernelSpmvCSR(uint rowsNbr, const float *values, const uint *col_ind, const
 	int row_beg = row_ptr[x];
 	int row_end = row_ptr[x+1];
 	
-	// y[x] est dans la mémoire globale, on crée une variable dans la mémoire locale pour gagner du temps
+	// y[x] est dans la mémoire globale, on crée une variable dans la mémoire locale pour gagner du temps => utilisation d'un registre du GPU
 	float dot = y[x];
 	for (int i = row_beg; i < row_end; i++)
 	{
