@@ -224,8 +224,38 @@ Matrix* gpuSpmvELL(const MatrixELL *m, const Matrix *v, const Matrix *reference 
 
 // STUDENTS BEGIN
 
-//kernelSpmvCSRVect(uint rowsNbr, const float *values, const uint *col_ind, const uint *row_ptr, const float *v, float *y)
-//TODO
+__global__ void kernelSpmvCSRVect(uint rowsNbr, const float *values, const uint *col_ind, const uint *row_ptr, const float *v, float *y)
+{
+	// dynamically allocated shared memory, size given at kernel call
+	extern __shared__ float dots[];
+
+	uint threadId = blockIdx.x * blockDim.x + threadIdx.x; // global thread index
+	uint warpId = threadId / 32; // global warp index
+	uint lane = threadId % 32; // thread index within the warp
+
+	uint r = warpId; // one row per warp
+
+	if( r < rowsNbr )
+	{
+		int row_beg = row_ptr[r];
+		int row_end = row_ptr[r+1];
+		dots[threadIdx.x] = 0.0f;
+
+		for(uint i = row_beg + lane; i < row_end; i+=32)
+			dots[threadIdx.x] += values[i] * v[col_ind[i]];
+
+		// parallel reduction in shared memory
+		if( lane < 16 )  dots[threadIdx.x] += dots[threadIdx.x + 16];
+		if( lane <  8 )  dots[threadIdx.x] += dots[threadIdx.x +  8];
+		if( lane <  4 )  dots[threadIdx.x] += dots[threadIdx.x +  4];
+		if( lane <  2 )  dots[threadIdx.x] += dots[threadIdx.x +  2];
+		if( lane <  1 )  dots[threadIdx.x] += dots[threadIdx.x +  1];
+
+		// first thread writes the result in global memory
+		if( lane == 0 )
+			y[r] = dots[threadIdx.x];
+	}
+}
 
 // STUDENTS END
 
