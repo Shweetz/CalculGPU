@@ -40,24 +40,20 @@ inline void gpuCheckKernelExecutionError( const char *file, int line)
 
 // STUDENTS BEGIN
 
-__global__ 
-void kernelSpmvCSR(uint rowsNbr, const float *values, const uint *col_ind, const uint *row_ptr, const float *v, float *y)
+__global__ void kernelSpmvCSR(uint rowsNbr, const float *values, const uint *col_ind, const uint *row_ptr, const float *v, float *y)
 {
-	int x = blockIdx.x * blockDim.x + threadIdx.x;
-	
-	// Matrice:values[],col_ind[],row_ptr[]
-	// Vecteur:v[]
-	
-	int row_beg = row_ptr[x];
-	int row_end = row_ptr[x+1];
-	
-	// y[x] est dans la mémoire globale, on crée une variable dans la mémoire locale pour gagner du temps => utilisation d'un registre du GPU
-	float dot = y[x];
-	for (int i = row_beg; i < row_end; i++)
+	uint r = blockIdx.x * blockDim.x + threadIdx.x;
+	if( r < rowsNbr )
 	{
-		dot += values[i] * v[col_ind[i]];
+		float dot = 0.0f;
+		int row_beg = row_ptr[r];
+		int row_end = row_ptr[r+1];
+
+		for(uint i = row_beg; i < row_end; i++)
+			dot += values[i] * v[col_ind[i]];
+
+		y[r] = dot;
 	}
-	y[x] = dot;
 }
 
 // STUDENTS END
